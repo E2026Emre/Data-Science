@@ -1,0 +1,455 @@
+--SQL Server Stored Procedures
+
+--SQL Server stored procedures are used to group one or more Transact-SQL statements into logical units.
+
+--When you call a stored procedure for the first time, SQL Server creates an execution plan and stores it in the cache. In the subsequent executions of the stored procedure, SQL Server reuses the plan so that the stored procedure can execute very fast with reliable performance.
+
+--Creating a simple stored procedure
+
+SELECT 
+	product_name, 
+	list_price
+FROM 
+	production.products
+ORDER BY 
+	product_name;
+
+CREATE PROCEDURE uspProductList
+AS
+BEGIN
+    SELECT 
+        product_name, 
+        list_price
+    FROM 
+        production.products
+    ORDER BY 
+        product_name;
+END;
+
+--CREATE PROCEDURE keywords --> CREATE PROC keywords to make the statement shorter.
+
+
+--Executing a stored procedure
+
+EXECUTE sp_name;
+
+OR
+
+EXEC sp_name;
+
+For example;
+
+EXEC uspProductList;
+
+
+--Modifying a stored procedure
+
+ALTER PROCEDURE uspProductList
+    AS
+    BEGIN
+        SELECT 
+            product_name, 
+            list_price
+        FROM 
+            production.products
+        ORDER BY 
+            list_price 
+    END;
+
+
+--Deleting a stored procedure
+
+--To delete a stored procedure, you use the DROP PROCEDURE or DROP 
+PROC statement:
+
+DROP PROCEDURE sp_name;
+
+or
+
+DROP PROC sp_name;
+
+DROP PROCEDURE uspProductList;
+
+
+--SQL Server Stored Procedure Parameters
+
+--Creating a stored procedure with one parameter
+
+ALTER PROCEDURE uspFindProducts (@min_list_price AS DECIMAL)
+AS
+BEGIN
+    SELECT
+        product_name,
+        list_price
+    FROM 
+        production.products
+    WHERE
+        list_price >= @min_list_price
+    ORDER BY
+        list_price;
+END;
+
+EXEC uspFindProducts 100;
+
+EXEC uspFindProducts 200;
+
+
+--Creating a stored procedure with multiple parameters
+
+ALTER PROCEDURE uspFindProducts(
+    @min_list_price AS DECIMAL,
+    @max_list_price AS DECIMAL
+)
+AS
+BEGIN
+    SELECT
+        product_name,
+        list_price
+    FROM 
+        production.products
+    WHERE
+        list_price >= @min_list_price AND
+        list_price <= @max_list_price
+    ORDER BY
+        list_price;
+END;
+
+EXECUTE uspFindProducts 900, 1000;
+
+
+--Using named parameters
+
+EXECUTE uspFindProducts 
+    @min_list_price = 900, 
+    @max_list_price = 1000;
+
+
+
+--Variables
+
+--A variable is an object that holds a single value of a specific type e.g., integer, date, or varying character string.
+
+--Declaring a variable
+
+DECLARE @model_year SMALLINT;
+
+OR
+
+DECLARE @model_year AS SMALLINT;
+
+--To declare multiple variables, you separate variables by commas:
+
+DECLARE @model_year SMALLINT, 
+        @product_name VARCHAR(MAX);
+
+--Assigning a value to a variable
+
+SET @model_year = 2018;
+
+--Using variables in a query
+
+SELECT
+    product_name,
+    model_year,
+    list_price 
+FROM 
+    production.products
+WHERE 
+    model_year = @model_year
+ORDER BY
+    product_name;
+
+
+-- you can put everything together and execute the following code block
+
+DECLARE @model_year SMALLINT;
+
+SET @model_year = 2018;
+
+SELECT
+    product_name,
+    model_year,
+    list_price 
+FROM 
+    production.products
+WHERE 
+    model_year = @model_year
+ORDER BY
+    product_name;
+
+--Storing query result in a variable
+
+DECLARE @product_count INT;
+
+SET @product_count = (
+    SELECT 
+        COUNT(*) 
+    FROM 
+        production.products 
+);
+
+SELECT @product_count;
+
+OR
+
+PRINT @product_count;
+
+OR
+
+PRINT 'The number of products is ' + CAST(@product_count AS VARCHAR(MAX));
+
+
+--Selecting a record into variables
+
+DECLARE 
+    @product_name VARCHAR(MAX),
+    @list_price DECIMAL(10,2);
+
+SELECT 
+    @product_name = product_name,
+    @list_price = list_price
+FROM
+    production.products
+WHERE
+    product_id = 100;
+
+SELECT 
+    @product_name AS product_name, 
+    @list_price AS list_price;
+
+
+--Accumulating values into a variable
+
+CREATE  PROC uspGetProductList(
+    @model_year SMALLINT
+) AS 
+BEGIN
+    DECLARE @product_list VARCHAR(MAX);
+
+    SET @product_list = '';
+
+    SELECT
+        @product_list = @product_list + product_name 
+                        + CHAR(10)
+    FROM 
+        production.products
+    WHERE
+        model_year = @model_year
+    ORDER BY 
+        product_name;
+
+    PRINT @product_list;
+END;
+
+EXEC uspGetProductList 2018
+
+
+--Stored Procedure Output Parameters
+
+--Creating output parameters
+
+CREATE PROCEDURE uspFindProductByModel (
+    @model_year SMALLINT,
+    @product_count INT OUTPUT
+) AS
+BEGIN
+    SELECT 
+        product_name,
+        list_price
+    FROM
+        production.products
+    WHERE
+        model_year = @model_year;
+
+    SELECT @product_count = @@ROWCOUNT;
+END;
+
+--Calling stored procedures with output parameters
+
+DECLARE @count INT;
+
+EXEC uspFindProductByModel
+    @model_year = 2018,
+    @product_count = @count OUTPUT;
+
+SELECT @count AS 'Number of products found';
+
+
+--SQL Server BEGIN END
+
+BEGIN
+    SELECT
+        product_id,
+        product_name
+    FROM
+        production.products
+    WHERE
+        list_price > 100000;
+
+    IF @@ROWCOUNT = 0
+        PRINT 'No product with price greater than 100000 found';
+END
+
+--Nesting BEGIN... END
+
+BEGIN
+    DECLARE @name VARCHAR(MAX);
+
+    SELECT TOP 1
+        @name = product_name
+    FROM
+        production.products
+    ORDER BY
+        list_price DESC;
+    
+    IF @@ROWCOUNT <> 0
+    BEGIN
+        PRINT 'The most expensive product is ' + @name
+    END
+    ELSE
+    BEGIN
+        PRINT 'No product found';
+    END;
+END
+
+
+--SQL Server IF ELSE
+
+BEGIN
+    DECLARE @sales INT;
+
+    SELECT 
+        @sales = SUM(list_price * quantity)
+    FROM
+        sales.order_items i
+        INNER JOIN sales.orders o ON o.order_id = i.order_id
+    WHERE
+        YEAR(order_date) = 2018;
+
+    SELECT @sales;
+
+    IF @sales > 1000000
+    BEGIN
+        PRINT 'Great! The sales amount in 2018 is greater than 1,000,000';
+    END
+END
+
+--The IF ELSE statement
+
+BEGIN
+    DECLARE @sales INT;
+
+    SELECT 
+        @sales = SUM(list_price * quantity)
+    FROM
+        sales.order_items i
+        INNER JOIN sales.orders o ON o.order_id = i.order_id
+    WHERE
+        YEAR(order_date) = 2017;
+
+    SELECT @sales;
+
+    IF @sales > 10000000
+    BEGIN
+        PRINT 'Great! The sales amount in 2018 is greater than 10,000,000';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Sales amount in 2017 did not reach 10,000,000';
+    END
+END
+
+
+--SQL Server WHILE
+
+DECLARE @counter INT = 1;
+
+WHILE @counter <= 5
+BEGIN
+    PRINT @counter;
+    SET @counter = @counter + 1;
+END
+
+
+--SQL Server BREAK
+
+DECLARE @counter INT = 0;
+
+WHILE @counter <= 5
+BEGIN
+    SET @counter = @counter + 1;
+    IF @counter = 4
+        BREAK;
+    PRINT @counter;
+END
+
+
+--SQL Server CONTINUE
+
+DECLARE @counter INT = 0;
+
+WHILE @counter < 5
+BEGIN
+    SET @counter = @counter + 1;
+    IF @counter = 3
+        CONTINUE;	
+    PRINT @counter;
+END
+
+
+--SQL Server Dynamic SQL
+
+EXEC sp_executesql N'SELECT * FROM production.products';
+
+--Because the sp_executesql accepts the dynamic SQL as a Unicode string, you need to prefix it with an N.
+
+--Using dynamic SQL to query from any table example
+
+DECLARE 
+    @table NVARCHAR(128),
+    @sql NVARCHAR(MAX);
+
+SET @table = N'production.products';
+
+SET @sql = N'SELECT * FROM ' + @table;
+
+EXEC sp_executesql @sql;
+
+
+--SQL Server dynamic SQL and stored procedures
+
+CREATE PROC usp_query (
+    @table NVARCHAR(128)
+)
+AS
+BEGIN
+
+    DECLARE @sql NVARCHAR(MAX);
+    -- construct SQL
+    SET @sql = N'SELECT * FROM ' + @table;
+    -- execute the SQL
+    EXEC sp_executesql @sql;
+    
+END;
+
+EXEC usp_query 'production.brands';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

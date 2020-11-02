@@ -1,0 +1,9 @@
+## No of Vehicles by Brand Available on ebay for sale 
+
+## Average price for vehicles based on the type of vehicle as well as on the type of gearbox
+
+## Average price of vehicle by fuel type as well as on the type of gearbox
+
+## Average price of vehicles by vehicle type and brand (heatmap) (first: groupby method, then: pivot table, finally heatmap)
+
+## Avg price of car by most common 15 years (or in last 15 years)
